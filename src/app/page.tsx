@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Menu, Bell, Search, User, LayoutDashboard, Home, 
@@ -10,7 +10,7 @@ import { Menu, Bell, Search, User, LayoutDashboard, Home,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function HomePage() {
+function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
@@ -2863,5 +2863,13 @@ export default function HomePage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[#0f1115] text-amber-500">Loading...</div>}>
+      <HomePageContent />
+    </Suspense>
   );
 }
