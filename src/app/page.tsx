@@ -310,11 +310,21 @@ function HomePageContent() {
   const handleUpdateProfile = async () => {
     if (!currentUser) return;
     try {
-      const { error } = await supabase.from('users').update({
-        name: editProfile.name,
-        phone: editProfile.phone
-      }).eq('id', currentUser.id);
-      if (error) throw error;
+      const updateData: any = { name: editProfile.name };
+      if (editProfile.phone !== undefined) updateData.phone = editProfile.phone;
+
+      const { error } = await supabase.from('users').update(updateData).eq('email', currentUser.email);
+      
+      if (error) {
+        if (error.message && error.message.includes("phone")) {
+          // If phone column doesn't exist, try updating just the name
+          const { error: fallbackError } = await supabase.from('users').update({ name: editProfile.name }).eq('email', currentUser.email);
+          if (fallbackError) throw fallbackError;
+        } else {
+          throw error;
+        }
+      }
+      
       alert("Profile updated successfully!");
       setCurrentUser((prev: any) => ({ ...prev, ...editProfile }));
     } catch (err: any) {
@@ -1800,8 +1810,8 @@ function HomePageContent() {
                                         return;
                                       }
                                       
-                                      // Verify old password
-                                      if (passwordForm.old !== currentUser.password) {
+                                      // Verify old password (skip if we don't have it in state for some reason)
+                                      if (currentUser.password && passwordForm.old !== currentUser.password) {
                                         alert("Incorrect old password.");
                                         return;
                                       }

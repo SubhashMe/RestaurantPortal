@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSignup, setIsSignup] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -36,7 +37,10 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
     
-    if (!formData.email || !formData.password || (isSignup && !formData.name)) {
+    if (isForgotPassword && !formData.email) {
+      setError("Please enter your email to reset password.");
+      return;
+    } else if (!isForgotPassword && (!formData.email || !formData.password || (isSignup && !formData.name))) {
       setError("Please fill in all required fields.");
       return;
     }
@@ -44,7 +48,27 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (isSignup) {
+      if (isForgotPassword) {
+        if (!formData.password) {
+           setError("Please enter a new password.");
+           setLoading(false);
+           return;
+        }
+        
+        const { data: userExists } = await supabase.from('users').select('id').eq('email', formData.email).maybeSingle();
+        if (!userExists) {
+           setError("User not found with this email.");
+           setLoading(false);
+           return;
+        }
+
+        const { error: resetError } = await supabase.from('users').update({ password: formData.password }).eq('email', formData.email);
+        if (resetError) throw resetError;
+        
+        setSuccess("Password reset successfully! Please log in.");
+        setIsForgotPassword(false);
+        setFormData(prev => ({ ...prev, password: "" }));
+      } else if (isSignup) {
         // Check if user already exists
         const { data: existingUser } = await supabase
           .from("users")
@@ -123,10 +147,10 @@ export default function LoginPage() {
               <Utensils size={32} />
             </div>
             <h2 className="text-2xl font-bold text-white mb-1">
-              {isSignup ? "Create an Account" : "Welcome Back"}
+              {isForgotPassword ? "Reset Password" : isSignup ? "Create an Account" : "Welcome Back"}
             </h2>
             <p className="text-slate-400 text-sm">
-              {isSignup ? "Join RestoPortal today" : "Sign in to your Restaurant Portal"}
+              {isForgotPassword ? "Enter email and new password" : isSignup ? "Join RestoPortal today" : "Sign in to your Restaurant Portal"}
             </p>
           </div>
         </div>
@@ -146,7 +170,7 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {isSignup && (
+            {!isForgotPassword && isSignup && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5" htmlFor="name">
                   Full Name
@@ -190,7 +214,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-1.5" htmlFor="password">
-                Password
+                {isForgotPassword ? "New Password" : "Password"}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -202,7 +226,7 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="Enter your password"
+                  placeholder={isForgotPassword ? "Enter your new password" : "Enter your password"}
                   className="w-full pl-10 pr-10 py-2.5 bg-[#0f1115] border border-[#2c3038] rounded-lg text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors"
                 />
                 <button
@@ -215,7 +239,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {!isSignup && (
+            {!isSignup && !isForgotPassword && (
               <div className="flex items-center justify-between pt-1">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -227,9 +251,9 @@ export default function LoginPage() {
                   />
                   <span className="text-sm text-slate-400 select-none">Remember me</span>
                 </label>
-                <Link href="#" className="text-sm font-medium text-amber-500 hover:text-blue-500 transition-colors">
+                <button type="button" onClick={() => setIsForgotPassword(true)} className="text-sm font-medium text-amber-500 hover:text-blue-500 transition-colors">
                   Forgot password?
-                </Link>
+                </button>
               </div>
             )}
 
@@ -242,7 +266,7 @@ export default function LoginPage() {
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
                 <>
-                  {isSignup ? "Create Account" : "Sign In"}
+                  {isForgotPassword ? "Reset Password" : isSignup ? "Create Account" : "Sign In"}
                   <ArrowRight size={18} />
                 </>
               )}
@@ -250,18 +274,35 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 text-center text-sm text-slate-400">
-            {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignup(!isSignup);
-                setError("");
-                setSuccess("");
-              }}
-              className="font-medium text-amber-500 hover:text-blue-500 transition-colors"
-            >
-              {isSignup ? "Sign in" : "Sign up"}
-            </button>
+            {isForgotPassword ? (
+              <>
+                Remember your password?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setError("");
+                    setSuccess("");
+                  }}
+                  className="font-medium text-amber-500 hover:text-blue-500 transition-colors"
+                >
+                  Back to login
+                </button>
+              </>
+            ) : isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+            {!isForgotPassword && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignup(!isSignup);
+                  setError("");
+                  setSuccess("");
+                }}
+                className="font-medium text-amber-500 hover:text-blue-500 transition-colors"
+              >
+                {isSignup ? "Sign in" : "Sign up"}
+              </button>
+            )}
           </div>
         </div>
       </div>
